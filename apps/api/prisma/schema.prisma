@@ -1,0 +1,104 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ItemStatus {
+  IN_USE
+  IDLE
+  REPLACE_SOON
+  RESTOCK_SOON
+}
+
+enum ReminderType {
+  FIXED_CYCLE
+  OWNED_DAYS
+  HIGH_DAILY_COST
+  RESTOCK
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+  SNOOZED
+}
+
+enum ThemeMode {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+model Category {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  sortOrder  Int      @default(0)
+  color      String   @default("neutral")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  items      Item[]
+}
+
+model Item {
+  id               Int          @id @default(autoincrement())
+  name             String
+  categoryId       Int
+  category         Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  price            Float
+  purchaseDate     DateTime
+  status           ItemStatus   @default(IN_USE)
+  note             String?
+  lastUsedAt       DateTime?
+  statusUpdatedAt  DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  reminderRules    ReminderRule[]
+  reminders        Reminder[]
+}
+
+model ReminderRule {
+  id             Int          @id @default(autoincrement())
+  itemId         Int
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type           ReminderType
+  cycleDays      Int?
+  thresholdValue Float?
+  enabled        Boolean      @default(true)
+  nextTriggerAt  DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  reminders      Reminder[]
+}
+
+model Reminder {
+  id           Int            @id @default(autoincrement())
+  itemId        Int
+  item          Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  ruleId        Int?
+  rule          ReminderRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  title         String
+  description   String
+  type          ReminderType
+  status        ReminderStatus @default(PENDING)
+  dueAt         DateTime
+  doneAt        DateTime?
+  snoozedUntil  DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Setting {
+  id                    Int       @id @default(1)
+  theme                 ThemeMode @default(LIGHT)
+  defaultReminderTime   String    @default("09:00")
+  toastEnabled          Boolean   @default(true)
+  exportFormat          String    @default("json")
+  highDailyCostThreshold Float    @default(5)
+  idleDaysThreshold     Int       @default(60)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
